@@ -46,3 +46,20 @@ class MMOBossEnv(gym.Env):
             self.screen = pygame.display.set_mode((600,600))
             self.clock = pygame.time.Clock()
             self.font = pygame.font.Font(None, 36)
+
+    def reset(self):
+        """
+        Reset the environment to initial state        
+        :param self: Description
+        """
+
+        # Human State
+        self.human_pos = np.array([1.0, 1.0], dtype=np.float32)
+        self.human_hp = self.HUMAN_INITIAL_HP
+        self.human_jumping = False
+        self.jump_timer = 0.0 
+
+        # Boss state
+        self.boss_pos = np.array([5.0, 5.0], dtype=np.float32)
+        self.boss_direction = np.array([1.0, 1.0], dtype=np.float32) # facing right
+

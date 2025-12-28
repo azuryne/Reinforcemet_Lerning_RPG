@@ -10,6 +10,9 @@ class MMOBossEnv(gym.Env):
     """
 
     def __init__(self, render_mode=None):
+        """
+        Initialize the environment
+        """
         super(MMOBossEnv, self).__init__()
 
         # Game parameters 
@@ -46,20 +49,79 @@ class MMOBossEnv(gym.Env):
             self.screen = pygame.display.set_mode((600,600))
             self.clock = pygame.time.Clock()
             self.font = pygame.font.Font(None, 36)
-
+    
     def reset(self):
         """
-        Reset the environment to initial state        
-        :param self: Description
+        Reset the environment to initial state
         """
 
-        # Human State
-        self.human_pos = np.array([1.0, 1.0], dtype=np.float32)
+        # Human state 
+        self.human_pos = np.array([1.0,1.0], dtype=np.float32)
         self.human_hp = self.HUMAN_INITIAL_HP
-        self.human_jumping = False
-        self.jump_timer = 0.0 
+        self.human_jummping = False
+        self.jump_tier = 0.0
 
-        # Boss state
+        # Boss state 
         self.boss_pos = np.array([5.0, 5.0], dtype=np.float32)
-        self.boss_direction = np.array([1.0, 1.0], dtype=np.float32) # facing right
+        self.boss_direction = np.array([1.0, 0.0], dtype=np.float32)
+        self.boss_attacking = False
+        self.laser_timer = 0.0
+        self.laser_cooldown = 0.0 
 
+        # Game state
+        self.time_played = 0.0 
+        self.game_over = False
+        self.winner = None 
+
+        return self._get_obs()
+
+    def _get_obs(self):
+        """
+        Convert state to the observation vector
+        """
+        return np.array([
+            self.human_pos[0] / self.ARENA_SIZE[0], # Normalize x to [0, 1]
+            self.human_pos[1] / self.ARENA_SIZE[1], # Normalize y to [0, 1]
+            self.human_hp, 
+            float(self.human_jumping),
+            self.laser_timer / self.BOSS_LASER_DURAION, # Normalize laser timer to [0, 1]
+            self.laser_cooldown / self.BOSS_LASER_COOLDOWN, # Normalize laser cooldown to [0, 1]
+            ])
+
+    def _get_boss_action(self):
+        """
+        Simple AI for boss to move and attack 
+        TODO: Implement RL agent for boss
+        """
+
+        # Chase Human 
+        direction = self.human_pos - self.boss_pos 
+        distance = np.linalg.norm(direction) # CalcuLate Eucladian distance between boss and human 
+
+        if distance > 0: 
+            direction = direction / distance # Normalize direction into vector - ensure boss moves at exactly BOSS_MOVE_SPEED (0.3 units per 0.1 time step)
+
+        # Move towards human - This logic ensure boss moves only one direction at a time (horizontal or vertical)
+        move = np.array([0.0, 0.0])
+        if abs(direction[0]) > abs(direction[1]):
+            move[0] = np.sign(direction[0]) # Move horizontally
+        else:
+            move[1] = np.sign(direction[1]) # Move vertically
+
+        # Attack if close enough and cooldown is ready 
+        if distance < 3.0 and self.laser_cooldown <= 0.0:
+            self.boss_attacking = True 
+            self.laser_timer = 0.0 
+            self.boss_direction = direction
+
+        return move 
+
+    def step(self, human_action):
+        """
+        Execute one timestep
+        """            
+
+        # Store old distance for reward calculation 
+        old_distance = np.linalg.norm(self.human_pos - self.boss_pos)
+        
+        
